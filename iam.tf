@@ -79,18 +79,3 @@ resource "aws_iam_role_policy" "exec" {
     ]
   })
 }
-
-resource "aws_iam_policy" "ci-runner" {
-  name = "${var.name}-assume-ci"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow",
-        Action   = "sts:AssumeRole",
-        Resource = "arn:aws:iam::*:role/ci-runner"
-      },
-    ]
-  })
-}
