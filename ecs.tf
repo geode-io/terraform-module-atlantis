@@ -139,6 +139,10 @@ resource "aws_ecs_task_definition" "this" {
           name  = "ATLANTIS_HIDE_PREV_PLAN_COMMENTS",
           value = "true",
         },
+        {
+          name  = "ATLANTIS_ENABLE_DIFF_MARKDOWN_FORMAT",
+          value = "true",
+        },
       ]
 
       secrets = [
