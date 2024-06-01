@@ -22,13 +22,13 @@ resource "aws_efs_access_point" "this" {
   root_directory {
     path = "/atlantis"
     creation_info {
-      owner_uid   = 1000
+      owner_uid   = 100
       owner_gid   = 1000
       permissions = "755"
     }
   }
   posix_user {
-    uid = 1000
+    uid = 100
     gid = 1000
   }
 

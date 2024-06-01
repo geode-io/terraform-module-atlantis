@@ -56,6 +56,11 @@ resource "aws_ecs_service" "this" {
     container_name   = local.atlantis_container_name
     container_port   = local.atlantis_container_port
   }
+
+  depends_on = [
+    aws_efs_mount_target.this,
+    aws_efs_access_point.this
+  ]
 }
 
 resource "aws_ecs_task_definition" "this" {
