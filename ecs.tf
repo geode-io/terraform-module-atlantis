@@ -95,6 +95,10 @@ resource "aws_ecs_task_definition" "this" {
           value = local.atlantis_data_dir,
         },
         {
+          name  = "ATLANTIS_LOCKING_DB_TYPE",
+          value = "redis",
+        },
+        {
           name  = "ATLANTIS_REDIS_HOST",
           value = aws_elasticache_serverless_cache.this.endpoint[0].address,
         },
