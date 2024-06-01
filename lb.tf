@@ -62,7 +62,7 @@ resource "aws_lb_target_group" "this" {
   deregistration_delay = 10
 
   health_check {
-    path     = "/ping"
+    path     = "/healthz"
     interval = 10
   }
 }
