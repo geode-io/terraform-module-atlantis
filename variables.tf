@@ -156,3 +156,9 @@ variable "oidc_user_info_endpoint" {
   type        = string
   description = "OIDC user info endpoint"
 }
+
+variable "oidc_session_timeout_seconds" {
+  type        = number
+  description = "OIDC session timeout in seconds"
+  default     = 86400
+}

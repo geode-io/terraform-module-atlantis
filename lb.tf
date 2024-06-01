@@ -43,6 +43,7 @@ resource "aws_lb_listener_rule" "ui" {
       issuer                 = var.oidc_issuer
       token_endpoint         = var.oidc_token_endpoint
       user_info_endpoint     = var.oidc_user_info_endpoint
+      session_timeout        = var.oidc_session_timeout_seconds
     }
   }
 
