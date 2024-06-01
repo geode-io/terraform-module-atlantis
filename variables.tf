@@ -12,7 +12,7 @@ variable "image_name" {
 variable "image_tag" {
   type        = string
   description = "Image version tag"
-  default     = "v0.27.3"
+  default     = "v0.28.1"
 }
 
 variable "dns_name" {
