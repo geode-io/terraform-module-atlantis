@@ -30,9 +30,14 @@ resource "aws_iam_policy" "ecs_addons" {
         Action = [
           "secretsmanager:GetSecretValue"
         ],
-        Resource = [
-          aws_secretsmanager_secret.atlantis.arn,
-        ]
+        Resource = concat(
+          [
+            aws_secretsmanager_secret.atlantis.arn,
+          ],
+          var.datadog_enabled ? [
+            data.aws_secretsmanager_secret.datadog_api_key[0].arn
+          ] : []
+        )
       },
     ]
   })

@@ -43,13 +43,15 @@ resource "aws_security_group" "ecs" {
 }
 
 resource "aws_ecs_service" "this" {
-  name                              = var.name
-  cluster                           = local.ecs_cluster_id
-  task_definition                   = aws_ecs_task_definition.this.arn
-  launch_type                       = "FARGATE"
-  desired_count                     = var.high_availability ? var.task_desired_count : 1
-  health_check_grace_period_seconds = 10
-  enable_execute_command            = true
+  name                               = var.name
+  cluster                            = local.ecs_cluster_id
+  task_definition                    = aws_ecs_task_definition.this.arn
+  launch_type                        = "FARGATE"
+  desired_count                      = var.high_availability ? var.task_desired_count : 1
+  health_check_grace_period_seconds  = 10
+  enable_execute_command             = true
+  deployment_minimum_healthy_percent = var.high_availability ? 100 : 0
+  deployment_maximum_percent         = var.high_availability ? 200 : 100
 
   network_configuration {
     security_groups = [aws_security_group.ecs.id]
@@ -77,121 +79,126 @@ resource "aws_ecs_task_definition" "this" {
   cpu                      = var.task_cpu
   memory                   = var.task_memory
 
-  container_definitions = jsonencode([
-    {
-      name      = local.atlantis_container_name
-      image     = "${var.image_name}:${var.image_tag}"
-      essential = true
+  container_definitions = jsonencode(concat(
+    [
+      {
+        name      = local.atlantis_container_name
+        image     = "${var.image_name}:${var.image_tag}"
+        essential = true
 
-      portMappings = [
-        {
-          containerPort = local.atlantis_container_port
-          hostPort      = local.atlantis_container_port
-          protocol      = "tcp"
+        portMappings = [
+          {
+            containerPort = local.atlantis_container_port
+            hostPort      = local.atlantis_container_port
+            protocol      = "tcp"
+          }
+        ]
+
+        linuxParameters = {
+          initProcessEnabled = true
         }
-      ]
 
-      linuxParameters = {
-        initProcessEnabled = true
+        environment = concat(
+          [
+            {
+              name  = "ATLANTIS_ATLANTIS_URL",
+              value = "https://${aws_route53_record.this_a.fqdn}",
+            },
+            {
+              name  = "ATLANTIS_DATA_DIR",
+              value = local.atlantis_data_dir,
+            },
+            {
+              name  = "ATLANTIS_LOCKING_DB_TYPE",
+              value = var.high_availability ? "redis" : "boltdb",
+            },
+            {
+              name  = "ATLANTIS_REPO_ALLOWLIST",
+              value = join(",", var.repo_allowlist),
+            },
+            {
+              name  = "ATLANTIS_GH_APP_SLUG",
+              value = var.github_app_slug,
+            },
+            {
+              name  = "ATLANTIS_GH_APP_ID",
+              value = tostring(var.github_app_id),
+            },
+          ],
+          var.high_availability ? [
+            {
+              name  = "ATLANTIS_REDIS_HOST",
+              value = aws_elasticache_serverless_cache.this[0].endpoint[0].address,
+            },
+            {
+              name  = "ATLANTIS_REDIS_TLS_ENABLED",
+              value = "true",
+            },
+          ] : [],
+          [
+            {
+              name  = "ATLANTIS_WRITE_GIT_CREDS",
+              value = tostring(var.atlantis_write_git_creds),
+            },
+            {
+              name  = "ATLANTIS_AUTOMERGE",
+              value = tostring(var.atlantis_automerge),
+            },
+            {
+              name  = "ATLANTIS_AUTOPLAN_MODULES",
+              value = tostring(var.atlantis_autoplan_modules),
+            },
+            {
+              name  = "ATLANTIS_HIDE_PREV_PLAN_COMMENTS",
+              value = tostring(var.atlantis_hide_prev_plan_comments),
+            },
+            {
+              name  = "ATLANTIS_ENABLE_DIFF_MARKDOWN_FORMAT",
+              value = tostring(var.atlantis_enable_diff_markdown_format),
+            },
+            {
+              name  = "ATLANTIS_HIDE_UNCHANGED_PLAN_COMMENTS",
+              value = tostring(var.atlantis_hide_unchanged_plan_comments),
+            },
+          ],
+          [for key, value in var.extra_env_vars : {
+            name  = key
+            value = value
+          }],
+        )
+
+        secrets = [
+          {
+            name      = "ATLANTIS_GH_APP_KEY",
+            valueFrom = "${aws_secretsmanager_secret.atlantis.arn}:github_app_private_key::"
+          },
+          {
+            name      = "ATLANTIS_GH_WEBHOOK_SECRET",
+            valueFrom = "${aws_secretsmanager_secret.atlantis.arn}:github_webhook_secret::"
+          },
+        ]
+
+        mountPoints = [
+          {
+            sourceVolume  = "atlantis-data"
+            containerPath = local.atlantis_data_dir
+          }
+        ]
+
+        logConfiguration = {
+          logDriver = "awslogs"
+          options = {
+            "awslogs-group"         = aws_cloudwatch_log_group.this.name
+            "awslogs-region"        = "us-west-2"
+            "awslogs-stream-prefix" = "ecs"
+          }
+        }
       }
-
-      environment = concat(
-        [
-          {
-            name  = "ATLANTIS_ATLANTIS_URL",
-            value = "https://${aws_route53_record.this_a.fqdn}",
-          },
-          {
-            name  = "ATLANTIS_DATA_DIR",
-            value = local.atlantis_data_dir,
-          },
-          {
-            name  = "ATLANTIS_LOCKING_DB_TYPE",
-            value = var.high_availability ? "redis" : "boltdb",
-          },
-          {
-            name  = "ATLANTIS_REPO_ALLOWLIST",
-            value = join(",", var.repo_allowlist),
-          },
-          {
-            name  = "ATLANTIS_GH_APP_SLUG",
-            value = var.github_app_slug,
-          },
-          {
-            name  = "ATLANTIS_GH_APP_ID",
-            value = tostring(var.github_app_id),
-          },
-        ],
-        var.high_availability ? [
-          {
-            name  = "ATLANTIS_REDIS_HOST",
-            value = aws_elasticache_serverless_cache.this[0].endpoint[0].address,
-          },
-          {
-            name  = "ATLANTIS_REDIS_TLS_ENABLED",
-            value = "true",
-          },
-        ] : [],
-        [
-          {
-            name  = "ATLANTIS_WRITE_GIT_CREDS",
-            value = tostring(var.atlantis_write_git_creds),
-          },
-          {
-            name  = "ATLANTIS_AUTOMERGE",
-            value = tostring(var.atlantis_automerge),
-          },
-          {
-            name  = "ATLANTIS_AUTOPLAN_MODULES",
-            value = tostring(var.atlantis_autoplan_modules),
-          },
-          {
-            name  = "ATLANTIS_HIDE_PREV_PLAN_COMMENTS",
-            value = tostring(var.atlantis_hide_prev_plan_comments),
-          },
-          {
-            name  = "ATLANTIS_ENABLE_DIFF_MARKDOWN_FORMAT",
-            value = tostring(var.atlantis_enable_diff_markdown_format),
-          },
-          {
-            name  = "ATLANTIS_HIDE_UNCHANGED_PLAN_COMMENTS",
-            value = tostring(var.atlantis_hide_unchanged_plan_comments),
-          },
-        ],
-        [for key, value in var.extra_env_vars : {
-          name  = key
-          value = value
-        }],
-      )
-
-      secrets = [
-        {
-          name      = "ATLANTIS_GH_APP_KEY",
-          valueFrom = "${aws_secretsmanager_secret.atlantis.arn}:github_app_private_key::"
-        },
-        {
-          name      = "ATLANTIS_GH_WEBHOOK_SECRET",
-          valueFrom = "${aws_secretsmanager_secret.atlantis.arn}:github_webhook_secret::"
-        },
-      ]
-
-      mountPoints = [
-        {
-          sourceVolume  = "atlantis-data"
-          containerPath = local.atlantis_data_dir
-        }
-      ]
-
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.this.name
-          "awslogs-region"        = "us-west-2"
-          "awslogs-stream-prefix" = "ecs"
-        }
-      }
-    }
-  ])
+    ],
+    var.datadog_enabled ? [
+      local.datadog_container_definition
+    ] : []
+  ))
 
   volume {
     name = "atlantis-data"

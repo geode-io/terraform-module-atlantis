@@ -175,6 +175,18 @@ variable "oidc_session_timeout_seconds" {
   default     = 86400
 }
 
+variable "datadog_enabled" {
+  type        = bool
+  description = "Enable Datadog integration"
+  default     = false
+}
+
+variable "datadog_api_key_secretsmanager_secret_name" {
+  type        = string
+  description = "Secrets Manager secret name for the Datadog API key"
+  default     = null
+}
+
 variable "atlantis_write_git_creds" {
   type        = bool
   description = "Enable writing of git credentials by Atlantis"
