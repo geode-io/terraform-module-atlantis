@@ -80,7 +80,7 @@ variable "task_subnet_ids" {
 
 variable "task_desired_count" {
   type        = number
-  description = "Number of Atlantis tasks to run"
+  description = "Number of Atlantis tasks to run in high availability mode"
   default     = 2
 }
 
@@ -96,6 +96,12 @@ variable "task_memory" {
   description = "Memory for the Atlantis task in MiB"
 }
 
+variable "high_availability" {
+  type        = bool
+  description = "Enable high availability mode"
+  default     = true
+}
+
 variable "efs_kms_key_id" {
   type        = string
   description = "KMS key ID for EFS encryption. If not provided, the default EFS key will be used."
@@ -105,6 +111,12 @@ variable "efs_kms_key_id" {
 variable "repo_allowlist" {
   type        = list(string)
   description = "List of allowed repository patterns"
+}
+
+variable "extra_env_vars" {
+  type        = map(string)
+  description = "Extra environment variables to pass to the Atlantis task"
+  default     = {}
 }
 
 variable "github_app_slug" {
@@ -161,4 +173,40 @@ variable "oidc_session_timeout_seconds" {
   type        = number
   description = "OIDC session timeout in seconds"
   default     = 86400
+}
+
+variable "atlantis_write_git_creds" {
+  type        = bool
+  description = "Enable writing of git credentials by Atlantis"
+  default     = true
+}
+
+variable "atlantis_automerge" {
+  type        = bool
+  description = "Enable automerging for approved pull requests"
+  default     = true
+}
+
+variable "atlantis_autoplan_modules" {
+  type        = bool
+  description = "Enable autoplanning for modules"
+  default     = true
+}
+
+variable "atlantis_hide_prev_plan_comments" {
+  type        = bool
+  description = "Hide previous plan comments"
+  default     = true
+}
+
+variable "atlantis_enable_diff_markdown_format" {
+  type        = bool
+  description = "Use diff markdown format"
+  default     = true
+}
+
+variable "atlantis_hide_unchanged_plan_comments" {
+  type        = bool
+  description = "Hide unchanged plan comments"
+  default     = true
 }

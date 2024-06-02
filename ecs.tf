@@ -15,6 +15,11 @@ data "aws_ecs_cluster" "target" {
 resource "aws_ecs_cluster" "this" {
   count = var.create_ecs_cluster ? 1 : 0
   name  = local.ecs_cluster_name
+
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
 }
 
 resource "aws_security_group" "ecs" {
@@ -42,7 +47,7 @@ resource "aws_ecs_service" "this" {
   cluster                           = local.ecs_cluster_id
   task_definition                   = aws_ecs_task_definition.this.arn
   launch_type                       = "FARGATE"
-  desired_count                     = var.task_desired_count
+  desired_count                     = var.high_availability ? var.task_desired_count : 1
   health_check_grace_period_seconds = 10
   enable_execute_command            = true
 
@@ -90,60 +95,74 @@ resource "aws_ecs_task_definition" "this" {
         initProcessEnabled = true
       }
 
-      environment = [
-        {
-          name  = "ATLANTIS_ATLANTIS_URL",
-          value = "https://${aws_route53_record.this_a.fqdn}",
-        },
-        {
-          name  = "ATLANTIS_DATA_DIR",
-          value = local.atlantis_data_dir,
-        },
-        {
-          name  = "ATLANTIS_LOCKING_DB_TYPE",
-          value = "redis",
-        },
-        {
-          name  = "ATLANTIS_REDIS_HOST",
-          value = aws_elasticache_serverless_cache.this.endpoint[0].address,
-        },
-        {
-          name  = "ATLANTIS_REDIS_TLS_ENABLED",
-          value = "true",
-        },
-        {
-          name  = "ATLANTIS_REPO_ALLOWLIST",
-          value = join(",", var.repo_allowlist),
-        },
-        {
-          name  = "ATLANTIS_GH_APP_SLUG",
-          value = var.github_app_slug,
-        },
-        {
-          name  = "ATLANTIS_GH_APP_ID",
-          value = tostring(var.github_app_id),
-        },
-        {
-          name  = "ATLANTIS_WRITE_GIT_CREDS",
-          value = "true",
-        },
-        {
-          name  = "ATLANTIS_AUTOMERGE",
-          value = "true",
-        },
-        {
-          name  = "ATLANTIS_AUTOPLAN_MODULES",
-          value = "true",
-        },
-        {
-          name  = "ATLANTIS_HIDE_PREV_PLAN_COMMENTS",
-          value = "true",
-        },
-        {
-          name  = "ATLANTIS_ENABLE_DIFF_MARKDOWN_FORMAT",
-          value = "true",
-        },
-      ]
+      environment = concat(
+        [
+          {
+            name  = "ATLANTIS_ATLANTIS_URL",
+            value = "https://${aws_route53_record.this_a.fqdn}",
+          },
+          {
+            name  = "ATLANTIS_DATA_DIR",
+            value = local.atlantis_data_dir,
+          },
+          {
+            name  = "ATLANTIS_LOCKING_DB_TYPE",
+            value = var.high_availability ? "redis" : "boltdb",
+          },
+          {
+            name  = "ATLANTIS_REPO_ALLOWLIST",
+            value = join(",", var.repo_allowlist),
+          },
+          {
+            name  = "ATLANTIS_GH_APP_SLUG",
+            value = var.github_app_slug,
+          },
+          {
+            name  = "ATLANTIS_GH_APP_ID",
+            value = tostring(var.github_app_id),
+          },
+        ],
+        var.high_availability ? [
+          {
+            name  = "ATLANTIS_REDIS_HOST",
+            value = aws_elasticache_serverless_cache.this[0].endpoint[0].address,
+          },
+          {
+            name  = "ATLANTIS_REDIS_TLS_ENABLED",
+            value = "true",
+          },
+        ] : [],
+        [
+          {
+            name  = "ATLANTIS_WRITE_GIT_CREDS",
+            value = tostring(var.atlantis_write_git_creds),
+          },
+          {
+            name  = "ATLANTIS_AUTOMERGE",
+            value = tostring(var.atlantis_automerge),
+          },
+          {
+            name  = "ATLANTIS_AUTOPLAN_MODULES",
+            value = tostring(var.atlantis_autoplan_modules),
+          },
+          {
+            name  = "ATLANTIS_HIDE_PREV_PLAN_COMMENTS",
+            value = tostring(var.atlantis_hide_prev_plan_comments),
+          },
+          {
+            name  = "ATLANTIS_ENABLE_DIFF_MARKDOWN_FORMAT",
+            value = tostring(var.atlantis_enable_diff_markdown_format),
+          },
+          {
+            name  = "ATLANTIS_HIDE_UNCHANGED_PLAN_COMMENTS",
+            value = tostring(var.atlantis_hide_unchanged_plan_comments),
+          },
+        ],
+        [for key, value in var.extra_env_vars : {
+          name  = key
+          value = value
+        }],
+      )
 
       secrets = [
         {
