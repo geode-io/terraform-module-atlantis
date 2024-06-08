@@ -139,9 +139,9 @@ variable "github_webhook_secret" {
   description = "GitHub webhook secret"
 }
 
-variable "oidc_authorization_endpoint" {
+variable "oidc_issuer" {
   type        = string
-  description = "OIDC authorization endpoint"
+  description = "OIDC issuer"
 }
 
 variable "oidc_client_id" {
@@ -152,21 +152,6 @@ variable "oidc_client_id" {
 variable "oidc_client_secret" {
   type        = string
   description = "OIDC client secret"
-}
-
-variable "oidc_issuer" {
-  type        = string
-  description = "OIDC issuer"
-}
-
-variable "oidc_token_endpoint" {
-  type        = string
-  description = "OIDC token endpoint"
-}
-
-variable "oidc_user_info_endpoint" {
-  type        = string
-  description = "OIDC user info endpoint"
 }
 
 variable "oidc_session_timeout_seconds" {

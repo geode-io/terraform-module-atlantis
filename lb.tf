@@ -37,12 +37,12 @@ resource "aws_lb_listener_rule" "ui" {
   action {
     type = "authenticate-oidc"
     authenticate_oidc {
-      authorization_endpoint = var.oidc_authorization_endpoint
+      issuer                 = var.oidc_issuer
       client_id              = var.oidc_client_id
       client_secret          = var.oidc_client_secret
-      issuer                 = var.oidc_issuer
-      token_endpoint         = var.oidc_token_endpoint
-      user_info_endpoint     = var.oidc_user_info_endpoint
+      authorization_endpoint = local.oidc_config.authorization_endpoint
+      token_endpoint         = local.oidc_config.token_endpoint
+      user_info_endpoint     = local.oidc_config.userinfo_endpoint
       session_timeout        = var.oidc_session_timeout_seconds
     }
   }
